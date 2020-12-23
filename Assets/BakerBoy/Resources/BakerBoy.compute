@@ -1,0 +1,41 @@
+﻿#pragma kernel PostProcess
+#pragma kernel Dilate
+
+RWTexture2D<float4> _Input;
+RWTexture2D<float4> _Output;
+
+float _OcclusionBias;
+float _OcclusionGain;
+
+[numthreads(8,8,1)]
+void PostProcess (uint3 id : SV_DispatchThreadID)
+{
+	// Apply occlusion gain/bias
+	float3 result = pow(saturate(_Input[id.xy].rgb * _OcclusionGain), _OcclusionBias);
+	_Input[id.xy] = float4(result, _Input[id.xy].a);
+}
+
+[numthreads(8,8,1)]
+void Dilate (uint3 id : SV_DispatchThreadID)
+{
+	_Output[id.xy] = _Input[id.xy];
+
+	if (_Input[id.xy].a > 0)
+		return;
+
+	float4 sum = 0;
+
+	for (int x = -1; x <= 1; x++)
+	{
+		for (int y = -1; y <= 1; y++)
+		{
+			if (x == 0 && y == 0)
+				continue;
+
+			sum += _Input[(int2)id.xy + int2(x, y)];
+		}
+	}
+
+	if (sum.a > 0)
+		_Output[id.xy] = float4(sum.rgb / sum.a, 1);
+}
