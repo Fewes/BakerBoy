@@ -520,6 +520,8 @@ half3 SubtractDirectMainLightFromLightmap(Light mainLight, half3 normalWS, half3
     return min(bakedGI, realtimeShadow);
 }
 
+half _SimpleReflOcclusion;
+
 half3 GlobalIllumination(BRDFData brdfData, half3 bakedGI, half occlusion, half3 normalWS, half3 bentNormalWS, half3 viewDirectionWS)
 {
     half3 reflectVector = reflect(-viewDirectionWS, normalWS);
@@ -532,8 +534,7 @@ half3 GlobalIllumination(BRDFData brdfData, half3 bakedGI, half occlusion, half3
 	// Self reflection amount clamp
 	// reflOcclusion = max(reflOcclusion, bentNormalWS.w);
 #else
-	half reflOcclusion = occlusion;
-	reflOcclusion = 1;
+	half reflOcclusion = lerp(1, occlusion, _SimpleReflOcclusion);
 #endif
 
     half3 indirectDiffuse = bakedGI * occlusion;
