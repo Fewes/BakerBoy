@@ -6,6 +6,7 @@ using UnityEngine.UI;
 public class SceneController : MonoBehaviour
 {
 	public Material[] skies;
+	public Color[] albedoColors;
 
 	readonly List<Material> sceneMaterials = new List<Material>();
 
@@ -26,6 +27,12 @@ public class SceneController : MonoBehaviour
 	{
 		foreach (var material in sceneMaterials)
 			material.SetFloat(parameter, value);
+	}
+
+	void SetMaterialColor (string parameter, Color value)
+	{
+		foreach (var material in sceneMaterials)
+			material.SetColor(parameter, value);
 	}
 
 	void SetMaterialKeyword (string parameter, bool state)
@@ -70,12 +77,17 @@ public class SceneController : MonoBehaviour
 	public void SetSpecularAA (bool state)
 	{
 		SetMaterialKeyword("_SPECULAR_AA", state);
+		SetMaterialFloat("_SpecularAA", state ? 1 : 0);
 	}
 
 	public void SetSky (int index)
 	{
-		Debug.Log("Shiet");
 		RenderSettings.skybox = skies[index];
 		DynamicGI.UpdateEnvironment();
+	}
+
+	public void SetAlbedoColor (int index)
+	{
+		SetMaterialColor("_BaseColor", albedoColors[index]);
 	}
 }

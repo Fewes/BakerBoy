@@ -102,8 +102,8 @@ Shader "Universal Render Pipeline/Custom/BakeryBoy Example"
 			#define _METALLICSPECGLOSSMAP 1
 			#define _OCCLUSIONMAP 1
 
-			#pragma shader_feature _BENTNORMALMAP
-			#pragma shader_feature _SPECULAR_AA
+			#pragma multi_compile _ _BENTNORMALMAP
+			#pragma multi_compile _ _SPECULAR_AA
 
 			#pragma shader_feature _SPECULARHIGHLIGHTS_OFF
 			#pragma shader_feature _GLOSSYREFLECTIONS_OFF
