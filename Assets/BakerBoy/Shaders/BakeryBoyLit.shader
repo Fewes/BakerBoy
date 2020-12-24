@@ -29,6 +29,7 @@ Shader "Universal Render Pipeline/Custom/BakeryBoy Example"
 
 		[NoScaleOffset] _BentNormalMap("Bent Normal Map", 2D) = "bump" {}
 		[Toggle(_BENTNORMALMAP)] _BentNormalMapOn("Use Bent Normal", Float) = 1.0
+		_SelfReflectionAmount("Self Reflection Amount", Range(0, 1)) = 0.1
 
 		[Toggle(_SPECULAR_AA)] _SpecularAA("Specular AA", Float) = 1.0
 
@@ -334,6 +335,9 @@ Shader "Universal Render Pipeline/Custom/BakeryBoy Example"
 				#endif
 				// Emission
 				color += surfaceData.emission;
+
+				// half reflOcclusion = GetReflectionOcclusion(reflect(-viewDirectionWS, normalWS), bentNormalWS, surfaceData.occlusion, 1-_Smoothness);
+				// color = float3(reflOcclusion, 0, 0);
 
 				float fogFactor = input.positionWSAndFogFactor.w;
 

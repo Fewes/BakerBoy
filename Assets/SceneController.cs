@@ -64,6 +64,11 @@ public class SceneController : MonoBehaviour
 		}
 	}
 
+	public void SetSelfReflectionAmount (float value)
+	{
+		SetMaterialFloat("_SelfReflectionAmount", value);
+	}
+
 	public void SetSmoothness (float value)
 	{
 		SetMaterialFloat("_Smoothness", value);

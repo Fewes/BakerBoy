@@ -521,6 +521,15 @@ half3 SubtractDirectMainLightFromLightmap(Light mainLight, half3 normalWS, half3
 }
 
 half _SimpleReflOcclusion;
+half _SelfReflectionAmount;
+
+half GetReflectionOcclusion (half3 reflectVector, half3 bentNormalWS, half occlusion, half perceptualRoughness, half selfReflectionAmount)
+{
+	half reflOcclusion = occlusion - (1-max(0, dot(reflectVector, bentNormalWS)));
+	reflOcclusion = saturate(reflOcclusion / perceptualRoughness);
+	reflOcclusion = lerp(reflOcclusion, 1, selfReflectionAmount);
+	return reflOcclusion;
+}
 
 half3 GlobalIllumination(BRDFData brdfData, half3 bakedGI, half occlusion, half3 normalWS, half3 bentNormalWS, half3 viewDirectionWS)
 {
@@ -528,13 +537,9 @@ half3 GlobalIllumination(BRDFData brdfData, half3 bakedGI, half occlusion, half3
     half fresnelTerm = Pow4(1.0 - saturate(dot(normalWS, viewDirectionWS)));
 
 #if _BENTNORMALMAP
-	half reflOcclusion = occlusion - (1-max(0, dot(reflectVector, bentNormalWS)));
-	reflOcclusion = saturate(reflOcclusion / brdfData.perceptualRoughness);
-	reflOcclusion = lerp(reflOcclusion, 1, occlusion);
-	// Self reflection amount clamp
-	// reflOcclusion = max(reflOcclusion, bentNormalWS.w);
+	half reflOcclusion = GetReflectionOcclusion(reflectVector, bentNormalWS, occlusion, brdfData.perceptualRoughness, _SelfReflectionAmount);
 #else
-	half reflOcclusion = lerp(1, occlusion, _SimpleReflOcclusion);
+	half reflOcclusion = lerp(1, occlusion, _SimpleReflOcclusion * (1-_SelfReflectionAmount));
 #endif
 
     half3 indirectDiffuse = bakedGI * occlusion;

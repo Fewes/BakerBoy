@@ -17,7 +17,6 @@ half _Smoothness;
 half _Metallic;
 half _BumpScale;
 half _OcclusionStrength;
-half _SelfReflectionAmount;
 CBUFFER_END
 
 TEXTURE2D(_OcclusionMap);       SAMPLER(sampler_OcclusionMap);
