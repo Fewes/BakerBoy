@@ -2,11 +2,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 public class SceneController : MonoBehaviour
 {
 	public Material[] skies;
 	public Color[] albedoColors;
+	public Volume volume;
 
 	readonly List<Material> sceneMaterials = new List<Material>();
 
@@ -94,5 +97,17 @@ public class SceneController : MonoBehaviour
 	public void SetAlbedoColor (int index)
 	{
 		SetMaterialColor("_BaseColor", albedoColors[index]);
+	}
+
+	public void SetPostProcessing (bool state)
+	{
+		volume.profile.TryGet<Bloom>(out var bloom);
+		volume.profile.TryGet<Vignette>(out var vignette);
+		volume.profile.TryGet<FilmGrain>(out var filmGrain);
+		volume.profile.TryGet<ChromaticAberration>(out var chromaticAberration);
+		bloom.active = state;
+		vignette.active = state;
+		filmGrain.active = state;
+		chromaticAberration.active = state;
 	}
 }
