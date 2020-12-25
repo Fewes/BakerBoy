@@ -271,27 +271,6 @@ public class BakerBoy : MonoBehaviour
 				DilateTexture(ref occlusionMap, dilationPasses);
 				DilateTexture(ref bentNormalMap, dilationPasses);
 			}
-			/*
-			var ping = occlusionMap;
-			var pong = RenderTexture.GetTemporary(ping.descriptor);
-			pong.Create();
-			for (int i = 0; i < dilationPasses; i++)
-			{
-				DilateTexture(ping, pong);
-				SwapRTs(ref ping, ref pong);
-			}
-			RenderTexture.ReleaseTemporary(pong);
-
-			var ping = occlusionMap;
-			var pong = RenderTexture.GetTemporary(ping.descriptor);
-			pong.Create();
-			for (int i = 0; i < dilationPasses; i++)
-			{
-				DilateTexture(ping, pong);
-				SwapRTs(ref ping, ref pong);
-			}
-			RenderTexture.ReleaseTemporary(pong);
-			*/
 		}
 
 		static void DilationPass (RenderTexture input, RenderTexture output)
@@ -573,19 +552,6 @@ public class BakerBoy : MonoBehaviour
 	{
 		var points = new Vector3[n];
 
-		/*
-		float phi = Mathf.PI * (3f - Mathf.Sqrt(5f));
-		for (int i = 0; i < n; i++)
-		{
-			float y = ((float)i / (n-1)) * 2 - 1;
-			float radius = Mathf.Sqrt(1 - y*y);
-			float theta = phi * i;
-			float x = Mathf.Cos(theta);
-			float z = Mathf.Sin(theta);
-			points[i] = new Vector3(x, y, z);
-		}
-		*/
-
 		float inc = Mathf.PI * (3 - Mathf.Sqrt(5));
 		float off = 2.0f / n;
 		float x = 0;
@@ -718,16 +684,4 @@ public class BakerBoy : MonoBehaviour
 		Random.InitState((int)System.DateTime.Now.Ticks);
 	}
 	#endregion
-
-	/*
-	Vector3[] pts;
-	void OnDrawGizmos ()
-	{
-		// Debug point distribution function
-		if (pts == null)
-			pts = PointsOnSphere(1024);
-		foreach (var point in pts)
-			Gizmos.DrawCube(point, Vector3.one * 0.01f);
-	}
-	*/
 }
