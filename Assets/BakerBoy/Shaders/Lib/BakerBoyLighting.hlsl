@@ -525,8 +525,11 @@ half _SelfReflectionAmount;
 
 half GetReflectionOcclusion (half3 reflectVector, half3 bentNormalWS, half occlusion, half perceptualRoughness, half selfReflectionAmount)
 {
+	// Base signal depends on occlusion and dot product between reflection and bent normal vector
 	half reflOcclusion = occlusion - (1-max(0, dot(reflectVector, bentNormalWS)));
+	// Scale with roughness. This is what "sharpens" glossy reflections
 	reflOcclusion = saturate(reflOcclusion / perceptualRoughness);
+	// Scale by color
 	reflOcclusion = lerp(reflOcclusion, 1, selfReflectionAmount);
 	return reflOcclusion;
 }

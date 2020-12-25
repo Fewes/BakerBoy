@@ -314,6 +314,7 @@ Shader "Universal Render Pipeline/Custom/BakeryBoy Example"
 				half3 color = GlobalIllumination(brdfData, bakedGI, surfaceData.occlusion, normalWS, bentNormalWS, viewDirectionWS);
 
 				// LightingPhysicallyBased computes direct light contribution.
+				// Use the bent normal here instead to get some nice light occlusion
 				color += LightingPhysicallyBased(brdfData, mainLight, bentNormalWS, bentNormalWS, viewDirectionWS);
 
 				// Additional lights loop
@@ -330,6 +331,7 @@ Shader "Universal Render Pipeline/Custom/BakeryBoy Example"
 					Light light = GetAdditionalLight(i, positionWS);
 
 					// Same functions used to shade the main light.
+					// Use the bent normal here instead to get some nice light occlusion
 					color += LightingPhysicallyBased(brdfData, light, bentNormalWS, bentNormalWS, viewDirectionWS);
 				}
 				#endif
