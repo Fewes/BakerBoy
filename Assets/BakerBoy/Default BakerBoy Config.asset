@@ -14,12 +14,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   sampleCount: 1024
   useHemisphere: 0
-  dilationCount: 256
+  dilationCount: 512
   defaultBakeResolution: {x: 1024, y: 1024}
   depthBias: 0.01
+  useUV2: 0
+  combinedOutput: 0
   outputAmbientOcclusion: 1
   occlusionBias: 1
   occlusionGain: 1
   outputBentNormal: 1
+  useSourceTextures: 1
   albedoMapName: _BaseMap
   normalMapName: _BumpMap
+  occlusionMapName: _OcclusionMap
+  bentNormalMapName: _BentNormalMap

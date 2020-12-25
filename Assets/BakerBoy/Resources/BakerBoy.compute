@@ -1,5 +1,6 @@
 ﻿#pragma kernel PostProcess
 #pragma kernel Dilate
+#pragma kernel Combine
 
 RWTexture2D<float4> _Input;
 RWTexture2D<float4> _Output;
@@ -38,4 +39,12 @@ void Dilate (uint3 id : SV_DispatchThreadID)
 
 	if (sum.a > 0)
 		_Output[id.xy] = float4(sum.rgb / sum.a, 1);
+}
+
+
+[numthreads(8,8,1)]
+void Combine (uint3 id : SV_DispatchThreadID)
+{
+	// _Output[id.xy] = float4(_Output[id.xy].rgb, _Input[id.xy].a);
+	_Output[id.xy] = float4(_Output[id.xy].rgb, _Input[id.xy].r);
 }

@@ -9,6 +9,7 @@ public class SceneController : MonoBehaviour
 {
 	public Material[] skies;
 	public Color[] albedoColors;
+	public GameObject pointLights;
 	public Volume volume;
 
 	readonly List<Material> sceneMaterials = new List<Material>();
@@ -97,6 +98,11 @@ public class SceneController : MonoBehaviour
 	public void SetAlbedoColor (int index)
 	{
 		SetMaterialColor("_BaseColor", albedoColors[index]);
+	}
+
+	public void SetPointLights (bool state)
+	{
+		pointLights.SetActive(state);
 	}
 
 	public void SetPostProcessing (bool state)

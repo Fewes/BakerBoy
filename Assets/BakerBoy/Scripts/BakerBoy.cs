@@ -29,7 +29,9 @@ public class BakerBoy : MonoBehaviour
 #if UNITY_EDITOR
 		AssetDatabase.Refresh();
 		var importer = AssetImporter.GetAtPath(filePath) as TextureImporter;
-		importer.textureType = isNormalMap ? TextureImporterType.NormalMap : TextureImporterType.Default;
+		//importer.textureType = isNormalMap ? TextureImporterType.NormalMap : TextureImporterType.Default;
+		importer.textureType = TextureImporterType.Default;
+		importer.sRGBTexture = false;
 		importer.textureCompression = isHighQuality ? TextureImporterCompression.CompressedHQ : TextureImporterCompression.CompressedLQ;
 		importer.SaveAndReimport();
 		return AssetDatabase.LoadAssetAtPath(filePath, typeof(Texture2D)) as Texture2D;
@@ -159,6 +161,8 @@ public class BakerBoy : MonoBehaviour
 			Graphics.SetRenderTarget(bentNormalMap);
 			GL.Clear(true, true, Color.clear);
 
+			internalMaterial.SetFloat("_UseUV2", config.useUV2 ? 1 : 0);
+
 			var cmd = CommandBufferPool.Get();
 			//Graphics.SetRenderTarget(new RenderBuffer[2] { positionMap.colorBuffer, worldNormalMap.colorBuffer }, positionMap.depthBuffer);
 			cmd.SetRenderTarget(new RenderTargetIdentifier[] { positionMap.colorBuffer, worldNormalMap.colorBuffer }, positionMap.depthBuffer);
@@ -192,6 +196,8 @@ public class BakerBoy : MonoBehaviour
 				cmd.GetTemporaryRT(tmp, bentNormalMap.descriptor);
 				cmd.Blit(bentNormalMap, tmp);
 			}
+
+			internalMaterial.SetFloat("_UseUV2", cachedConfig.useUV2 ? 1 : 0);
 
 			foreach (var rc in renderers)
 			{
@@ -319,22 +325,46 @@ public class BakerBoy : MonoBehaviour
 		public void Output (Material material)
 		{
 #if UNITY_EDITOR
-			var assetPath = AssetDatabase.GetAssetPath(material);
-			var texturePath = Path.GetDirectoryName(assetPath).Replace("\\", "/") + "/" + Path.GetFileNameWithoutExtension(assetPath);
-			if (cachedConfig.outputAmbientOcclusion)
+			Object sourceAsset = material;
+			if (cachedConfig.useSourceTextures)
 			{
-				var result = RenderTextureToFile(occlusionMap, texturePath + "_Occlusion.png", false, true);
-				if (result && cachedConfig.useSourceTextures)
-				{
-					material.SetTexture(cachedConfig.occlusionMapName, result);
-				}
+				if (material.GetTexture(cachedConfig.albedoMapName))
+					sourceAsset = material.GetTexture(cachedConfig.albedoMapName);
+				else if (material.GetTexture(cachedConfig.normalMapName))
+					sourceAsset = material.GetTexture(cachedConfig.normalMapName);
 			}
-			if (cachedConfig.outputBentNormal)
+
+			var assetPath = AssetDatabase.GetAssetPath(sourceAsset);
+			var texturePath = Path.GetDirectoryName(assetPath).Replace("\\", "/") + "/" + material.name;
+			if (cachedConfig.combinedOutput)
 			{
-				var result = RenderTextureToFile(bentNormalMap, texturePath + "_BentNormal.png", true);
+				compute.SetTexture(2, "_Input", occlusionMap);
+				compute.SetTexture(2, "_Output", bentNormalMap);
+				var threadGroupCount = GetThreadGroupCount(bentNormalMap.width, bentNormalMap.height, 8);
+				compute.Dispatch(2, threadGroupCount.x, threadGroupCount.y, threadGroupCount.z);
+				var result = RenderTextureToFile(bentNormalMap, texturePath + "_BentNormal.png", true, true);
 				if (result && cachedConfig.useSourceTextures)
 				{
 					material.SetTexture(cachedConfig.bentNormalMapName, result);
+				}
+			}
+			else
+			{
+				if (cachedConfig.outputAmbientOcclusion)
+				{
+					var result = RenderTextureToFile(occlusionMap, texturePath + "_Occlusion.png", false, true);
+					if (result && cachedConfig.useSourceTextures)
+					{
+						material.SetTexture(cachedConfig.occlusionMapName, result);
+					}
+				}
+				if (cachedConfig.outputBentNormal)
+				{
+					var result = RenderTextureToFile(bentNormalMap, texturePath + "_BentNormal.png", true);
+					if (result && cachedConfig.useSourceTextures)
+					{
+						material.SetTexture(cachedConfig.bentNormalMapName, result);
+					}
 				}
 			}
 			AssetDatabase.Refresh();

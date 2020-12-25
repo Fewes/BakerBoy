@@ -268,7 +268,7 @@ Shader "Universal Render Pipeline/Custom/BakeryBoy Example"
 				half3 ambientNormal = normalWS;
 
 				#if _BENTNORMALMAP
-				half3 bentNormalWS = TransformTangentToWorld(surfaceData.normalTS,
+				half3 bentNormalWS = TransformTangentToWorld(surfaceData.bentNormalTS,
 					half3x3(input.tangentWS, input.bitangentWS, input.normalWS));
 				ambientNormal = bentNormalWS;
 				#else
@@ -314,7 +314,7 @@ Shader "Universal Render Pipeline/Custom/BakeryBoy Example"
 				half3 color = GlobalIllumination(brdfData, bakedGI, surfaceData.occlusion, normalWS, bentNormalWS, viewDirectionWS);
 
 				// LightingPhysicallyBased computes direct light contribution.
-				color += LightingPhysicallyBased(brdfData, mainLight, normalWS, bentNormalWS, viewDirectionWS);
+				color += LightingPhysicallyBased(brdfData, mainLight, bentNormalWS, bentNormalWS, viewDirectionWS);
 
 				// Additional lights loop
 				#ifdef _ADDITIONAL_LIGHTS
@@ -330,7 +330,7 @@ Shader "Universal Render Pipeline/Custom/BakeryBoy Example"
 					Light light = GetAdditionalLight(i, positionWS);
 
 					// Same functions used to shade the main light.
-					color += LightingPhysicallyBased(brdfData, light, normalWS, bentNormalWS, viewDirectionWS);
+					color += LightingPhysicallyBased(brdfData, light, bentNormalWS, bentNormalWS, viewDirectionWS);
 				}
 				#endif
 				// Emission

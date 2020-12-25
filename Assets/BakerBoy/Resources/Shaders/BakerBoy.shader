@@ -5,6 +5,15 @@ Shader "Hidden/BakerBoy"
 		CGINCLUDE
 		#include "UnityCG.cginc"
 
+		struct appdata {
+			float4 vertex : POSITION;
+			float3 normal : NORMAL;
+			float4 tangent : TANGENT;
+			float4 texcoord : TEXCOORD0;
+			float4 texcoord1 : TEXCOORD1;
+			UNITY_VERTEX_INPUT_INSTANCE_ID
+		};
+
 		struct v2f
 		{
 			float4 vertex 	: SV_POSITION;
@@ -13,7 +22,9 @@ Shader "Hidden/BakerBoy"
 			float3x3 TBN	: TEXCOORD2;
 		};
 
-		v2f vertWorld (appdata_full v)
+		float _UseUV2;
+
+		v2f vertWorld (appdata v)
 		{
 			v2f o = (v2f)0;
 
@@ -31,12 +42,14 @@ Shader "Hidden/BakerBoy"
 			return o;
 		}
 
-		v2f vertUV (appdata_full v)
+		v2f vertUV (appdata v)
 		{
 			v2f o = (v2f)0;
 
 			// o.vertex 	= float4((frac(v.texcoord) * 2 - 1) * float2(1, -1), 0.5, 1);
-			o.vertex 	= float4((v.texcoord * 2 - 1) * float2(1, -1), 0.5, 1);
+			// float2 uv = (_UseUV2 > 0.5) ? v.texcoord1 : v.texcoord;
+			float2 uv = (_UseUV2 > 0.5) ? v.texcoord1 : v.texcoord;
+			o.vertex 	= float4((uv * 2 - 1) * float2(1, -1), 0.5, 1);
 			o.texcoord 	= v.texcoord;
 			o.worldPos	= mul(UNITY_MATRIX_M, v.vertex).xyz;
 
