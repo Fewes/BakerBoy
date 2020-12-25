@@ -10,10 +10,10 @@ using UnityEditor;
 public class BakerBoy : MonoBehaviour
 {
 	#region Utilities
-	static void RenderTextureToFile (RenderTexture rt, string filePath)
+	static Texture2D RenderTextureToFile (RenderTexture rt, string filePath, bool isNormalMap = false, bool isHighQuality = false)
 	{
 		if (!rt)
-			return;
+			return null;
 
 		RenderTexture.active = rt;
 		var tex = new Texture2D(rt.width, rt.height, TextureFormat.ARGB32, false);
@@ -25,6 +25,17 @@ public class BakerBoy : MonoBehaviour
 			Destroy(tex);
 		else
 			DestroyImmediate(tex);
+
+#if UNITY_EDITOR
+		AssetDatabase.Refresh();
+		var importer = AssetImporter.GetAtPath(filePath) as TextureImporter;
+		importer.textureType = isNormalMap ? TextureImporterType.NormalMap : TextureImporterType.Default;
+		importer.textureCompression = isHighQuality ? TextureImporterCompression.CompressedHQ : TextureImporterCompression.CompressedLQ;
+		importer.SaveAndReimport();
+		return AssetDatabase.LoadAssetAtPath(filePath, typeof(Texture2D)) as Texture2D;
+#else
+		return null;
+#endif
 	}
 
 	static Vector3Int GetThreadGroupCount (int width, int height, int threadGroupSize)
@@ -41,10 +52,32 @@ public class BakerBoy : MonoBehaviour
 		PackNormal
 	}
 
+	[System.Serializable]
+	public class Item
+	{
+		[System.Serializable]
+		public enum Type
+		{
+			Skip,
+			Block,
+			Bake
+		}
+
+		public Renderer renderer;
+		public Type type = Type.Bake;
+
+		public Item (Renderer renderer, Type type)
+		{
+			this.renderer = renderer;
+			this.type = type;
+		}
+	}
+
 	public class RendererContainer
 	{
 		public Renderer renderer;
 		public int submeshIndex;
+		public bool noOutput;
 	}
 
 	public class BakeContainer
@@ -82,12 +115,17 @@ public class BakerBoy : MonoBehaviour
 		public RenderTexture occlusionMap;
 		public RenderTexture bentNormalMap;
 
+		public bool noOutput;
+
 		Vector2Int resolution;
 		BakerBoyConfig cachedConfig;
 
 		public void Setup (BakerBoyConfig config, Material srcMaterial)
 		{
 			cachedConfig = config;
+
+			if (noOutput)
+				return;
 
 			Texture2D srcMap = null;
 			srcMap = srcMaterial.GetTexture(config.albedoMapName) as Texture2D;
@@ -127,6 +165,9 @@ public class BakerBoy : MonoBehaviour
 			var normalMap = srcMaterial.GetTexture(config.normalMapName);
 			foreach (var rc in renderers)
 			{
+				if (rc.noOutput)
+					continue;
+
 				if (normalMap && config.useSourceTextures)
 				{
 					cmd.SetGlobalTexture("_NormalMap", normalMap);
@@ -165,6 +206,9 @@ public class BakerBoy : MonoBehaviour
 						}
 					break;
 					case DrawPass.Gather:
+						if (rc.noOutput)
+							continue;
+
 						//cmd.SetRenderTarget(occlusionMap);
 						cmd.SetRenderTarget(new RenderTargetIdentifier[] { occlusionMap.colorBuffer, bentNormalMap.colorBuffer }, occlusionMap.depthBuffer);
 						cmd.SetGlobalTexture("_PositionMap", positionMap);
@@ -173,6 +217,9 @@ public class BakerBoy : MonoBehaviour
 						cmd.DrawRenderer(rc.renderer, internalMaterial, rc.submeshIndex, SHADER_PASS_GATHER);
 					break;
 					case DrawPass.PackNormal:
+						if (rc.noOutput)
+							continue;
+
 						cmd.SetRenderTarget(bentNormalMap);
 						cmd.SetGlobalTexture("_WorldNormalMap", tmp);
 						cmd.DrawRenderer(rc.renderer, internalMaterial, rc.submeshIndex, SHADER_PASS_TRANSFORM_NORMALS);
@@ -275,9 +322,21 @@ public class BakerBoy : MonoBehaviour
 			var assetPath = AssetDatabase.GetAssetPath(material);
 			var texturePath = Path.GetDirectoryName(assetPath).Replace("\\", "/") + "/" + Path.GetFileNameWithoutExtension(assetPath);
 			if (cachedConfig.outputAmbientOcclusion)
-				RenderTextureToFile(occlusionMap, texturePath + "_Occlusion.png");
+			{
+				var result = RenderTextureToFile(occlusionMap, texturePath + "_Occlusion.png", false, true);
+				if (result && cachedConfig.useSourceTextures)
+				{
+					material.SetTexture(cachedConfig.occlusionMapName, result);
+				}
+			}
 			if (cachedConfig.outputBentNormal)
-				RenderTextureToFile(bentNormalMap, texturePath + "_BentNormal.png");
+			{
+				var result = RenderTextureToFile(bentNormalMap, texturePath + "_BentNormal.png", true);
+				if (result && cachedConfig.useSourceTextures)
+				{
+					material.SetTexture(cachedConfig.bentNormalMapName, result);
+				}
+			}
 			AssetDatabase.Refresh();
 #else
 			Debug.Log("BakerBoy.BakeContainer.Output is an editor-only feature");
@@ -319,8 +378,59 @@ public class BakerBoy : MonoBehaviour
 
 	public BakerBoyConfig config = null;
 
+	public List<Item> items = new List<Item>();
+
 	Bounds m_SceneBounds;
 	RenderTexture m_Shadowmap;
+	#endregion
+
+	#region Setup
+	void OnValidate ()
+	{
+		if (!Application.isPlaying)
+			FindItems();
+	}
+
+	public void FindItems ()
+	{
+		if (items == null)
+			items = new List<Item>();
+
+		var prevItems = items.GetRange(0, items.Count);
+		items.Clear();
+
+		var renderers = GetComponentsInChildren<Renderer>(true);
+
+		foreach (var renderer in renderers)
+		{
+			if (!(renderer is MeshRenderer || renderer is SkinnedMeshRenderer))
+				continue;
+
+			var type = Item.Type.Bake;
+			bool prevFound = false;
+			foreach (var prevItem in prevItems)
+			{
+				if (prevItem.renderer == renderer)
+				{
+					type = prevItem.type;
+					prevFound = true;
+					break;
+				}
+			}
+
+			if (!prevFound)
+			{
+				if (!renderer.enabled || !renderer.gameObject.activeInHierarchy)
+					type = Item.Type.Skip;
+				// Crude way of automatically skipping any renderer with _LOD1 or higher in the name
+				// This could be improved substantially but proved sufficient at the time of implementation and is very simple
+				else if (renderer.name.ToLower().Contains("_lod") && !renderer.name.ToLower().Contains("_lod0"))
+					type = Item.Type.Skip;
+			}
+
+			items.Add(new Item(renderer, type));
+		}
+	}
 	#endregion
 
 	#region Baking
@@ -340,8 +450,13 @@ public class BakerBoy : MonoBehaviour
 
 		bool foundRenderers = false;
 
-		foreach (var renderer in renderers)
+		foreach (var item in items)
 		{
+			if (item.type == Item.Type.Skip)
+				continue;
+
+			var renderer = item.renderer;
+
 			if (!(renderer is MeshRenderer || renderer is SkinnedMeshRenderer))
 				continue;
 
@@ -358,10 +473,14 @@ public class BakerBoy : MonoBehaviour
 
 				if (!bakedMaterials.ContainsKey(material))
 				{
-					bakedMaterials.Add(material, new BakeContainer());
+					bakedMaterials.Add(material, new BakeContainer() { noOutput = item.type == Item.Type.Block });
 				}
 
-				bakedMaterials[material].renderers.Add(new RendererContainer() { renderer = renderer, submeshIndex = i });
+				// noOutput flag for the entire material can only be set when initializing the container, and any renderer found that is set to bake will override the flag for this material
+				if (item.type == Item.Type.Bake)
+					bakedMaterials[material].noOutput = false;
+
+				bakedMaterials[material].renderers.Add(new RendererContainer() { renderer = renderer, submeshIndex = i, noOutput = item.type == Item.Type.Block });
 			}
 		}
 
@@ -517,6 +636,9 @@ public class BakerBoy : MonoBehaviour
 			// Draw renderers
 			foreach (var bake in bakedMaterials)
 			{
+				if (bake.Value.noOutput)
+					continue;
+
 				bake.Value.Draw(cmd, bake.Key, DrawPass.Gather);
 			}
 
@@ -540,6 +662,9 @@ public class BakerBoy : MonoBehaviour
 			// Output files
 			foreach (var bake in bakedMaterials)
 			{
+				if (bake.Value.noOutput)
+					continue;
+
 				bake.Value.PostProcess();
 				bake.Value.Output(bake.Key);
 			}
@@ -553,6 +678,9 @@ public class BakerBoy : MonoBehaviour
 		// Discard RTs
 		foreach (var bake in bakedMaterials)
 		{
+			if (bake.Value.noOutput)
+					continue;
+
 			bake.Value.Dispose();
 		}
 

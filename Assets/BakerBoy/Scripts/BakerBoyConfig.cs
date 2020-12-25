@@ -29,4 +29,6 @@ public class BakerBoyConfig : ScriptableObject
 	//public string		alphaCutoffName			= "_Cutoff";
 	public string		normalMapName			= "_BumpMap";
 	//public string		normalMapScaleName		= "_BumpScale";
+	public string		occlusionMapName		= "_OcclusionMap";
+	public string		bentNormalMapName		= "_BentNormalMap";
 }
