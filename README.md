@@ -12,6 +12,7 @@ Just place the BakerBoy script on any GameObject and press Find Renderers. Use t
 # What are bent normals?
 Bent normal maps store the direction of least occlusion (in other words, the direction in which the most ambient light is coming from) in a texture.  
 They can be used to occlude cubemap reflections based on the view direction in a much more realistic way than just multiplying with an ambient occlusion term. They can also be used to attenuate light sources without shadows, and to get an ambient color value which more closesly resembles a ray traced result.
+For a visual example, check the demo executable linked at the top.
 For details on how to implement these effects in your own shader, check the function GetReflectionOcclusion in BakerBoyLighting.hlsl
 
 # Features
