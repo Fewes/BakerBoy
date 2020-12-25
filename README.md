@@ -1,7 +1,7 @@
 # Baker Boy
 ![alt text](bentnormal.gif)
 
-# [--> Demo Executable <--](fewes.se/downloads/BakerBoyDemo.zip)
+# [--> Demo Executable <--](http://fewes.se/downloads/BakerBoyDemo.zip)
 
 # What is this?
 A tiny GPU-based ambient occlusion and bent normal baker for Unity. It is the successor to my [BNAO repository](https://github.com/Fewes/BNAO). In comparison it has a lighter feature set but outputs cleaner/more consistent results and should work in any render pipeline.
