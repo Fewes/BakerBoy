@@ -1,5 +1,6 @@
 # Baker Boy
-![alt text](bentnormal.gif)
+![Ambient occlusion baked using BakerBoy](OcclusionPreview.jpg)
+![Showcasing some advanced bent normal effects](bentnormal.gif)
 
 # [--> Demo Executable <--](http://fewes.se/downloads/BakerBoyDemo.zip)
 
