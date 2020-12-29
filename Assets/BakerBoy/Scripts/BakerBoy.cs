@@ -29,8 +29,7 @@ public class BakerBoy : MonoBehaviour
 #if UNITY_EDITOR
 		AssetDatabase.Refresh();
 		var importer = AssetImporter.GetAtPath(filePath) as TextureImporter;
-		//importer.textureType = isNormalMap ? TextureImporterType.NormalMap : TextureImporterType.Default;
-		importer.textureType = TextureImporterType.Default;
+		importer.textureType = isNormalMap ? TextureImporterType.NormalMap : TextureImporterType.Default;
 		importer.sRGBTexture = false;
 		importer.textureCompression = isHighQuality ? TextureImporterCompression.CompressedHQ : TextureImporterCompression.CompressedLQ;
 		importer.SaveAndReimport();
@@ -57,21 +56,15 @@ public class BakerBoy : MonoBehaviour
 	[System.Serializable]
 	public class Item
 	{
-		[System.Serializable]
-		public enum Type
-		{
-			Skip,
-			Block,
-			Bake
-		}
-
 		public Renderer renderer;
-		public Type type = Type.Bake;
+		public bool bake;
+		public bool occlude;
 
-		public Item (Renderer renderer, Type type)
+		public Item (Renderer renderer, bool bake, bool occlude)
 		{
 			this.renderer = renderer;
-			this.type = type;
+			this.bake = bake;
+			this.occlude = occlude;
 		}
 	}
 
@@ -79,7 +72,8 @@ public class BakerBoy : MonoBehaviour
 	{
 		public Renderer renderer;
 		public int submeshIndex;
-		public bool noOutput;
+		public bool bake;
+		public bool occlude;
 	}
 
 	public class BakeContainer
@@ -137,7 +131,7 @@ public class BakerBoy : MonoBehaviour
 			if (srcMap)
 				resolution = new Vector2Int(srcMap.width, srcMap.height);
 
-			var desc = new RenderTextureDescriptor(resolution.x, resolution.y, RenderTextureFormat.ARGBFloat, 0) { enableRandomWrite = true, sRGB = false };
+			var desc = new RenderTextureDescriptor(resolution.x, resolution.y, RenderTextureFormat.ARGBFloat, 32) { enableRandomWrite = true, sRGB = false };
 			positionMap		= new RenderTexture(desc);
 			worldNormalMap	= new RenderTexture(desc);
 			occlusionMap	= new RenderTexture(desc);
@@ -161,15 +155,17 @@ public class BakerBoy : MonoBehaviour
 			Graphics.SetRenderTarget(bentNormalMap);
 			GL.Clear(true, true, Color.clear);
 
-			internalMaterial.SetFloat("_UseUV2", config.useUV2 ? 1 : 0);
+			if (config.useUV2)
+				internalMaterial.EnableKeyword("_USE_UV2");
+			else
+				internalMaterial.DisableKeyword("_USE_UV2");
 
 			var cmd = CommandBufferPool.Get();
-			//Graphics.SetRenderTarget(new RenderBuffer[2] { positionMap.colorBuffer, worldNormalMap.colorBuffer }, positionMap.depthBuffer);
 			cmd.SetRenderTarget(new RenderTargetIdentifier[] { positionMap.colorBuffer, worldNormalMap.colorBuffer }, positionMap.depthBuffer);
 			var normalMap = srcMaterial.GetTexture(config.normalMapName);
 			foreach (var rc in renderers)
 			{
-				if (rc.noOutput)
+				if (!rc.bake)
 					continue;
 
 				if (normalMap && config.useSourceTextures)
@@ -197,13 +193,14 @@ public class BakerBoy : MonoBehaviour
 				cmd.Blit(bentNormalMap, tmp);
 			}
 
-			internalMaterial.SetFloat("_UseUV2", cachedConfig.useUV2 ? 1 : 0);
-
 			foreach (var rc in renderers)
 			{
 				switch (pass)
 				{
 					case DrawPass.Shadow:
+						if (!rc.occlude)
+							continue;
+
 						// Find and use native shadow caster pass
 						int shadowPass = srcMaterial.FindPass("ShadowCaster");
 						if (shadowPass > -1)
@@ -212,18 +209,18 @@ public class BakerBoy : MonoBehaviour
 						}
 					break;
 					case DrawPass.Gather:
-						if (rc.noOutput)
+						if (!rc.bake)
 							continue;
 
-						//cmd.SetRenderTarget(occlusionMap);
 						cmd.SetRenderTarget(new RenderTargetIdentifier[] { occlusionMap.colorBuffer, bentNormalMap.colorBuffer }, occlusionMap.depthBuffer);
+						cmd.ClearRenderTarget(true, false, Color.clear);
 						cmd.SetGlobalTexture("_PositionMap", positionMap);
 						cmd.SetGlobalTexture("_WorldNormalMap", worldNormalMap);
 						cmd.SetGlobalFloat("_GatherAmount", 1f / cachedConfig.sampleCount);
 						cmd.DrawRenderer(rc.renderer, internalMaterial, rc.submeshIndex, SHADER_PASS_GATHER);
 					break;
 					case DrawPass.PackNormal:
-						if (rc.noOutput)
+						if (!rc.bake)
 							continue;
 
 						cmd.SetRenderTarget(bentNormalMap);
@@ -321,7 +318,7 @@ public class BakerBoy : MonoBehaviour
 				compute.SetTexture(2, "_Output", bentNormalMap);
 				var threadGroupCount = GetThreadGroupCount(bentNormalMap.width, bentNormalMap.height, 8);
 				compute.Dispatch(2, threadGroupCount.x, threadGroupCount.y, threadGroupCount.z);
-				var result = RenderTextureToFile(bentNormalMap, texturePath + "_BentNormal.png", true, true);
+				var result = RenderTextureToFile(bentNormalMap, texturePath + "_BentNormal.png", false, true);
 				if (result && cachedConfig.useSourceTextures)
 				{
 					material.SetTexture(cachedConfig.bentNormalMapName, result);
@@ -339,7 +336,7 @@ public class BakerBoy : MonoBehaviour
 				}
 				if (cachedConfig.outputBentNormal)
 				{
-					var result = RenderTextureToFile(bentNormalMap, texturePath + "_BentNormal.png", true);
+					var result = RenderTextureToFile(bentNormalMap, texturePath + "_BentNormal.png", true, true);
 					if (result && cachedConfig.useSourceTextures)
 					{
 						material.SetTexture(cachedConfig.bentNormalMapName, result);
@@ -415,13 +412,15 @@ public class BakerBoy : MonoBehaviour
 			if (!(renderer is MeshRenderer || renderer is SkinnedMeshRenderer))
 				continue;
 
-			var type = Item.Type.Bake;
+			bool bake = true;
+			bool occlude = true;
 			bool prevFound = false;
 			foreach (var prevItem in prevItems)
 			{
 				if (prevItem.renderer == renderer)
 				{
-					type = prevItem.type;
+					bake = prevItem.bake;
+					occlude = prevItem.occlude;
 					prevFound = true;
 					break;
 				}
@@ -430,14 +429,20 @@ public class BakerBoy : MonoBehaviour
 			if (!prevFound)
 			{
 				if (!renderer.enabled || !renderer.gameObject.activeInHierarchy)
-					type = Item.Type.Skip;
+				{
+					bake = false;
+					occlude = false;
+				}
 				// Crude way of automatically skipping any renderer with _LOD1 or higher in the name
 				// This could be improved substantially but proved sufficient at the time of implementation and is very simple
 				else if (renderer.name.ToLower().Contains("_lod") && !renderer.name.ToLower().Contains("_lod0"))
-					type = Item.Type.Skip;
+				{
+					bake = false;
+					occlude = false;
+				}
 			}
 
-			items.Add(new Item(renderer, type));
+			items.Add(new Item(renderer, bake, occlude));
 		}
 	}
 	#endregion
@@ -461,7 +466,7 @@ public class BakerBoy : MonoBehaviour
 
 		foreach (var item in items)
 		{
-			if (item.type == Item.Type.Skip)
+			if (!item.bake && !item.occlude)
 				continue;
 
 			var renderer = item.renderer;
@@ -482,14 +487,14 @@ public class BakerBoy : MonoBehaviour
 
 				if (!bakedMaterials.ContainsKey(material))
 				{
-					bakedMaterials.Add(material, new BakeContainer() { noOutput = item.type == Item.Type.Block });
+					bakedMaterials.Add(material, new BakeContainer() { noOutput = !item.bake });
 				}
 
 				// noOutput flag for the entire material can only be set when initializing the container, and any renderer found that is set to bake will override the flag for this material
-				if (item.type == Item.Type.Bake)
+				if (item.bake)
 					bakedMaterials[material].noOutput = false;
 
-				bakedMaterials[material].renderers.Add(new RendererContainer() { renderer = renderer, submeshIndex = i, noOutput = item.type == Item.Type.Block });
+				bakedMaterials[material].renderers.Add(new RendererContainer() { renderer = renderer, submeshIndex = i, bake = item.bake, occlude = item.occlude });
 			}
 		}
 
@@ -590,8 +595,6 @@ public class BakerBoy : MonoBehaviour
 		// Make sure we get the same result every bake
 		Random.InitState(1234567890);
 
-		//Debug.Log(Shader.GetGlobalVector("_ShadowBias"));
-		//Shader.SetGlobalVector("_ShadowBias", new Vector4(-config.depthBias, -config.normalBias, 0, 0));
 		// URP
 		Shader.SetGlobalVector("_ShadowBias", new Vector4(0, 0, 0, 0));
 
@@ -617,7 +620,6 @@ public class BakerBoy : MonoBehaviour
 			cmd.Clear();
 
 			// Random light direction
-			//Vector3 direction = Random.onUnitSphere;
 			Vector3 direction = directions[i];
 			if (config.useHemisphere)
 				direction.y = -Mathf.Abs(direction.y);

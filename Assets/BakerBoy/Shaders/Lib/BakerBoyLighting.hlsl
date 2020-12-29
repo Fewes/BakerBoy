@@ -526,12 +526,15 @@ half _SelfReflectionAmount;
 half GetReflectionOcclusion (half3 reflectVector, half3 bentNormalWS, half occlusion, half perceptualRoughness, half selfReflectionAmount)
 {
 	// Base signal depends on occlusion and dot product between reflection and bent normal vector
-	half reflOcclusion = occlusion - (1-max(0, dot(reflectVector, bentNormalWS)));
+	half occlusionAmount = max(0, dot(reflectVector, bentNormalWS));
+	half reflOcclusion = occlusion - (1-occlusionAmount);
 	// Scale with roughness. This is what "sharpens" glossy reflections
 	reflOcclusion = saturate(reflOcclusion / perceptualRoughness);
-	// Scale by color
-	reflOcclusion = lerp(reflOcclusion, 1, selfReflectionAmount);
-	return reflOcclusion;
+	// Fade between roughness-modulated occlusion and "regular" occlusion based on surface roughness
+	// This is done because the roughness-modulated signal doesn't represent rough surfaces very well
+	reflOcclusion = lerp(reflOcclusion, lerp(occlusionAmount, 1, occlusion), perceptualRoughness);
+	// Scale by color and return
+	return lerp(reflOcclusion, 1, selfReflectionAmount);
 }
 
 half3 GlobalIllumination(BRDFData brdfData, half3 bakedGI, half occlusion, half3 normalWS, half3 bentNormalWS, half3 viewDirectionWS)

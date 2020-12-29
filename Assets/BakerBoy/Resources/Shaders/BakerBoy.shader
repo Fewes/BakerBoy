@@ -46,10 +46,11 @@ Shader "Hidden/BakerBoy"
 		{
 			v2f o = (v2f)0;
 
-			// o.vertex 	= float4((frac(v.texcoord) * 2 - 1) * float2(1, -1), 0.5, 1);
-			// float2 uv = (_UseUV2 > 0.5) ? v.texcoord1 : v.texcoord;
-			float2 uv = (_UseUV2 > 0.5) ? v.texcoord1 : v.texcoord;
-			o.vertex 	= float4((uv * 2 - 1) * float2(1, -1), 0.5, 1);
+			#if _USE_UV2
+			o.vertex 	= float4((v.texcoord1 * 2 - 1) * float2(1, -1), 0.5, 1);
+			#else
+			o.vertex 	= float4((v.texcoord * 2 - 1) * float2(1, -1), 0.5, 1);
+			#endif
 			o.texcoord 	= v.texcoord;
 			o.worldPos	= mul(UNITY_MATRIX_M, v.vertex).xyz;
 
@@ -84,10 +85,13 @@ Shader "Hidden/BakerBoy"
 		{
 			Name "PositionNormal"
 			Cull Off
+			ZWrite On
+			ZTest LEqual
 
 			CGPROGRAM
 			#pragma vertex vertUV
 			#pragma fragment frag
+			#pragma multi_compile _ _USE_UV2
 
 			struct FragOut
 			{
@@ -118,11 +122,15 @@ Shader "Hidden/BakerBoy"
 		{
 			Name "Gather"
 			Cull Off
+			ZWrite On
+			ZTest LEqual
+			
 			Blend One One
 
 			CGPROGRAM
 			#pragma vertex vertUV
 			#pragma fragment frag
+			#pragma multi_compile _ _USE_UV2
 
 			struct FragOut
 			{
@@ -167,6 +175,7 @@ Shader "Hidden/BakerBoy"
 			CGPROGRAM
 			#pragma vertex vertUV
 			#pragma fragment frag
+			#pragma multi_compile _ _USE_UV2
 
 			float4 frag (v2f i) : SV_Target
 			{

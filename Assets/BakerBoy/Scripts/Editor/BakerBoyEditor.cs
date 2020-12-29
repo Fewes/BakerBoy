@@ -26,13 +26,24 @@ public class BakerBoyEditor : Editor
 		}
 	}
 
+	Texture2D _halfBakeTex;
+	Texture2D halfBakeTex
+	{
+		get
+		{
+			if (!_halfBakeTex)
+				_halfBakeTex = MakeTexture(new Color(1, 1, 0, 0.5f));
+			return _halfBakeTex;
+		}
+	}
+
 	Texture2D _blockTex;
 	Texture2D blockTex
 	{
 		get
 		{
 			if (!_blockTex)
-				_blockTex = MakeTexture(new Color(1, 1, 0, 0.5f));
+				_blockTex = MakeTexture(new Color(1, 0, 1, 0.5f));
 			return _blockTex;
 		}
 	}
@@ -48,7 +59,7 @@ public class BakerBoyEditor : Editor
 		}
 	}
 
-	GUIStyle bakeStyle, blockStyle, skipStyle;
+	GUIStyle bakeStyle, halfBakeStyle, blockStyle, skipStyle;
 	#endregion
 
 	BakerBoy baker;
@@ -69,17 +80,21 @@ public class BakerBoyEditor : Editor
 		
 	}
 
-	GUIStyle GetStyle (BakerBoy.Item.Type type)
+	GUIStyle GetStyle (BakerBoy.Item item)
 	{
-		switch (type)
+		if (item.bake)
 		{
-			case BakerBoy.Item.Type.Skip:
-				return skipStyle;
-			case BakerBoy.Item.Type.Block:
-				return blockStyle;
-			default:
-			case BakerBoy.Item.Type.Bake:
+			if (item.occlude)
 				return bakeStyle;
+			else
+				return halfBakeStyle;
+		}
+		else
+		{
+			if (item.occlude)
+				return blockStyle;
+			else
+				return skipStyle;
 		}
 	}
 
@@ -87,11 +102,13 @@ public class BakerBoyEditor : Editor
 	{
 		if (bakeStyle == null)
 		{
-			bakeStyle  = new GUIStyle(EditorStyles.helpBox);
+			bakeStyle = new GUIStyle(EditorStyles.helpBox);
 			bakeStyle.normal.background = bakeTex;
+			halfBakeStyle = new GUIStyle(EditorStyles.helpBox);
+			halfBakeStyle.normal.background = halfBakeTex;
 			blockStyle = new GUIStyle(EditorStyles.helpBox);
 			blockStyle.normal.background = blockTex;
-			skipStyle  = new GUIStyle(EditorStyles.helpBox);
+			skipStyle = new GUIStyle(EditorStyles.helpBox);
 			skipStyle.normal.background = skipTex;
 		}
 
@@ -101,20 +118,28 @@ public class BakerBoyEditor : Editor
 
 		EditorGUILayout.Space();
 
-		GUILayout.Label("Renderers", EditorStyles.boldLabel);
+		GUILayout.BeginHorizontal();
+		GUILayout.Label("Renderer", EditorStyles.boldLabel);
+		GUILayout.Label("Bake", EditorStyles.boldLabel, GUILayout.Width(35));
+		GUILayout.Label("Occlude", EditorStyles.boldLabel, GUILayout.Width(60));
+		GUILayout.EndHorizontal();
 
 		GUILayout.BeginVertical("box");
 
 		int i = 0;
 		foreach (var item in baker.items)
 		{
-			GUILayout.BeginHorizontal(GetStyle(item.type));
+			GUILayout.BeginHorizontal(GetStyle(item));
 			//GUILayout.Label(item.renderer.name);
 			if (GUILayout.Button(item.renderer ? item.renderer.name : "Missing renderer!"))
 			{
 				Selection.activeObject = item.renderer;
 			}
-			EditorGUILayout.PropertyField(p_Items.GetArrayElementAtIndex(i).FindPropertyRelative("type"), new GUIContent(""), GUILayout.MaxWidth(100));
+
+			GUILayout.Space(20);
+			EditorGUILayout.PropertyField(p_Items.GetArrayElementAtIndex(i).FindPropertyRelative("bake"), new GUIContent(""), GUILayout.Width(42));
+			EditorGUILayout.PropertyField(p_Items.GetArrayElementAtIndex(i).FindPropertyRelative("occlude"), new GUIContent(""), GUILayout.Width(35));
+
 			GUILayout.EndHorizontal();
 			i++;
 		}

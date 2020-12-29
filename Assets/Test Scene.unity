@@ -7152,7 +7152,8 @@ MonoBehaviour:
   config: {fileID: 11400000, guid: 0936540d82a8f384c995891152296409, type: 2}
   items:
   - renderer: {fileID: 914815448148404607}
-    type: 2
+    bake: 1
+    occlude: 1
 --- !u!33 &7443445270807330727
 MeshFilter:
   m_ObjectHideFlags: 0
